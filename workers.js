@@ -425,6 +425,21 @@ const HTML_CONTENT = `
     const categories = {};
     let currentEngine;
     let initialDragState = { category: null, index: -1 };
+    let saveOrderDebounceTimer = null;
+
+    function generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+    }
+
+    function ensureLinkIds(cats) {
+        Object.values(cats).forEach(cat => {
+            if (cat && Array.isArray(cat.links)) {
+                cat.links.forEach(l => {
+                    if (!l.id) l.id = generateId();
+                });
+            }
+        });
+    }
 
     function toggleAppLayout() {
         isAppLayout = !isAppLayout;
@@ -488,7 +503,7 @@ const HTML_CONTENT = `
     });
 
     async function checkLoginStatusAndLoad() {
-        const isValid = await validateToken();
+        const isValid = await validateToken(true); 
         if (isValid) {
             isLoggedIn = true;
         } else {
@@ -629,13 +644,14 @@ const HTML_CONTENT = `
     
     async function loadLinks() {
         try {
-            const response = await fetchWithAuth('/api/getLinks');
+            const response = await fetchWithAuth('/api/getLinks', {}, true);
             if (!response.ok) throw new Error("HTTP error! status: " + response.status);
             
             const data = await response.json();
             if (data.categories) {
                 Object.keys(categories).forEach(key => delete categories[key]);
                 Object.assign(categories, data.categories);
+                ensureLinkIds(categories);
             }
 
             loadSections();
@@ -656,7 +672,7 @@ const HTML_CONTENT = `
             });
 
             if (response.status === 401) {
-                await logout();
+                await logout(false);
                 await customAlert('登录凭证已过期，请重新登录');
                 throw new Error('Unauthorized');
             }
@@ -798,7 +814,6 @@ const HTML_CONTENT = `
         return result;
     }
 
-    // 安全渲染分类区（彻底解决 DOM XSS 风险）
     function renderCategorySections({ renderButtons = false, searchMode = false, filteredCategories = null } = {}) {
         const container = document.getElementById('sections-container');
         container.innerHTML = '';
@@ -1072,6 +1087,7 @@ const HTML_CONTENT = `
 
     function createCard(link, container) {
         if (!isEditMode && link.isPrivate && !isLoggedIn) return;
+        if (!link.id) link.id = generateId();
 
         const card = document.createElement('div');
         let cardBaseClass = isAppLayout 
@@ -1090,6 +1106,7 @@ const HTML_CONTENT = `
             card.classList.add('cursor-move');
         }
         
+        card.dataset.id = link.id;
         card.dataset.isPrivate = link.isPrivate;
         card.setAttribute('data-url', link.url);
 
@@ -1250,6 +1267,7 @@ const HTML_CONTENT = `
         }
 
         const newLink = {
+            id: generateId(),
             name, url, category,
             tips: document.getElementById('tips-input').value.trim(),
             icon: document.getElementById('icon-input').value.trim(),
@@ -1272,6 +1290,7 @@ const HTML_CONTENT = `
         if (!await validateTokenOrRedirect()) return;
         
         const updatedLink = {
+            id: oldLink.id || generateId(),
             name: document.getElementById('name-input').value.trim(),
             url: document.getElementById('url-input').value.trim(),
             tips: document.getElementById('tips-input').value.trim(),
@@ -1282,7 +1301,7 @@ const HTML_CONTENT = `
 
         let found = false;
         for (const cat in categories) {
-             const idx = categories[cat].links.findIndex(l => l.url === oldLink.url);
+             const idx = categories[cat].links.findIndex(l => l.id === oldLink.id || l.url === oldLink.url);
              if (idx !== -1) {
                  found = true;
                  if (cat === updatedLink.category) {
@@ -1308,9 +1327,9 @@ const HTML_CONTENT = `
 
     async function removeCard(card) {
         if (!await validateTokenOrRedirect()) return;
-        const url = card.getAttribute('data-url');
+        const cardId = card.getAttribute('data-id');
         for (const cat in categories) {
-            const idx = categories[cat].links.findIndex(l => l.url === url);
+            const idx = categories[cat].links.findIndex(l => l.id === cardId);
             if (idx !== -1) {
                 categories[cat].links.splice(idx, 1);
                 break;
@@ -1359,7 +1378,7 @@ const HTML_CONTENT = `
             const newState = getCardState(draggedCard);
             if (newState.category !== initialDragState.category || newState.index !== initialDragState.index) {
                 updateCardCategory(draggedCard, newState.category);
-                await saveCardOrder();
+                debouncedSaveCardOrder();
             }
             draggedCard = null;
         }
@@ -1392,6 +1411,7 @@ const HTML_CONTENT = `
 
         mobileDragTimer = setTimeout(() => {
             isMobileDragging = true;
+            document.body.style.overflow = 'hidden'; 
             mobilePlaceholder = card;
             activeContainer = mobilePlaceholder.parentElement;
             initialDragState = getCardState(mobilePlaceholder);
@@ -1541,12 +1561,13 @@ const HTML_CONTENT = `
                              mobilePlaceholder.style.opacity = '';
                              mobilePlaceholder.classList.remove('border-dashed', 'border-2', 'border-emerald-400');
                         }
-                        saveCardOrder();
+                        debouncedSaveCardOrder();
                         mobilePlaceholder = null;
                         mobileClone = null;
                     }, 200);
                 }
             }
+            document.body.style.overflow = '';
             isMobileDragging = false;
             cleanupListeners();
         }
@@ -1559,10 +1580,10 @@ const HTML_CONTENT = `
     }
 
     function updateCardCategory(card, newCategory) {
-        const url = card.getAttribute('data-url');
+        const cardId = card.getAttribute('data-id');
         let item = null;
         for (const cat in categories) {
-             const idx = categories[cat].links.findIndex(l => l.url === url);
+             const idx = categories[cat].links.findIndex(l => l.id === cardId);
              if (idx !== -1) {
                  item = categories[cat].links.splice(idx, 1)[0];
                  break;
@@ -1574,9 +1595,24 @@ const HTML_CONTENT = `
         }
     }
 
+    function debouncedSaveCardOrder() {
+        if (saveOrderDebounceTimer) clearTimeout(saveOrderDebounceTimer);
+        saveOrderDebounceTimer = setTimeout(() => {
+            saveCardOrder();
+        }, 500);
+    }
+
     async function saveCardOrder() {
         const newCategories = {};
         const sections = document.querySelectorAll('.section');
+        const allLinksMap = new Map();
+
+        Object.values(categories).forEach(cat => {
+            (cat.links || []).forEach(l => {
+                if (l.id) allLinksMap.set(l.id, l);
+            });
+        });
+
         sections.forEach(sec => {
             const catName = sec.id;
             const oldCat = categories[catName];
@@ -1584,8 +1620,8 @@ const HTML_CONTENT = `
             
             const cards = sec.querySelectorAll('.card');
             cards.forEach(c => {
-                 const url = c.getAttribute('data-url');
-                 const original = Object.values(categories).flatMap(x=>x.links).find(l=>l.url === url);
+                 const cardId = c.getAttribute('data-id');
+                 const original = allLinksMap.get(cardId);
                  if(original) {
                      original.category = catName;
                      newCategories[catName].links.push(original);
@@ -1626,7 +1662,7 @@ const HTML_CONTENT = `
              document.getElementById('password-input').focus();
         } else {
              if (await customConfirm('确定退出登录吗？')) {
-                 await logout();
+                 await logout(true);
              }
         }
     }
@@ -1691,7 +1727,7 @@ const HTML_CONTENT = `
          } catch(e) { await customAlert('网络或服务异常，请稍后重试'); }
     };
 
-    async function fetchWithAuth(url, options = {}) {
+    async function fetchWithAuth(url, options = {}, silentAuth = false) {
         const token = localStorage.getItem('authToken');
         const headers = options.headers || {};
         if (token) headers.Authorization = token;
@@ -1712,14 +1748,17 @@ const HTML_CONTENT = `
                     headers.Authorization = refreshData.accessToken;
                     options.headers = headers;
                     res = await fetch(url, options);
+                    return res;
                 } else {
                     throw new Error('Refresh token expired');
                 }
             } catch (refreshError) {
                 localStorage.removeItem('authToken');
                 isLoggedIn = false;
-                toggleOverlay('password-dialog-overlay', true);
-                await customAlert('登录已过期，请重新登录');
+                if (!silentAuth) {
+                    toggleOverlay('password-dialog-overlay', true);
+                    await customAlert('登录已过期，请重新登录');
+                }
                 throw new Error('Unauthorized');
             }
         }
@@ -1823,33 +1862,32 @@ const HTML_CONTENT = `
     }
 
     async function validateTokenOrRedirect() {
-        const valid = await validateToken();
+        const valid = await validateToken(false);
         if(!valid) {
-            await logout();
+            await logout(false);
             await customAlert('登录凭证已过期，请重新登录');
             return false;
         }
         return true;
     }
     
-    async function validateToken() {
+    async function validateToken(silent = true) {
         const t = localStorage.getItem('authToken');
         if(!t) return false;
         try {
-            const r = await fetchWithAuth('/api/validateToken');
+            const r = await fetchWithAuth('/api/validateToken', {}, silent);
             return r.status === 200;
         } catch(e) { return false; }
     }
     
-    // 安全彻底地退出登录（清除服务端 HttpOnly Cookie 与 本地缓存）
-    async function logout() {
+    async function logout(reload = true) {
         try {
             await fetch('/api/logout', { method: 'POST', credentials: 'include' });
         } catch(e) {}
         localStorage.removeItem('authToken');
         isLoggedIn = false;
         isEditMode = false;
-        location.reload();
+        if (reload) location.reload();
     }
     
     async function exportData() {
@@ -1859,7 +1897,7 @@ const HTML_CONTENT = `
         try {
             const res = await fetchWithAuth("/api/exportData", { method: "POST" });
             if (res.status === 401) {
-                await logout();
+                await logout(false);
                 await customAlert('登录凭证已过期，请重新登录');
                 return;
             }
@@ -1904,7 +1942,7 @@ const HTML_CONTENT = `
                         });
                         
                         if (res.status === 401) {
-                            await logout();
+                            await logout(false);
                             await customAlert('登录凭证已过期，请重新登录');
                             return;
                         }
@@ -1930,7 +1968,6 @@ const HTML_CONTENT = `
 const DEFAULT_USER = 'testUser';
 const MIN_BACKUP_INTERVAL_MS = 10 * 60 * 1000; 
 
-// 恒定时间字符串比较函数（抵御时序攻击 Timing Attack）
 function timingSafeEqualStr(a, b) {
     if (typeof a !== 'string' || typeof b !== 'string') return false;
     const enc = new TextEncoder();
@@ -1944,19 +1981,33 @@ function timingSafeEqualStr(a, b) {
     return diff === 0;
 }
 
+// 兼容 UTF-8 多字节字符的 Base64URL 编码
 function base64UrlEncode(str) {
-    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const bytes = new TextEncoder().encode(str);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 function base64UrlEncodeUint8(arr) {
-    const str = String.fromCharCode(...arr);
-    return base64UrlEncode(str);
+    let binary = '';
+    for (let i = 0; i < arr.byteLength; i++) {
+        binary += String.fromCharCode(arr[i]);
+    }
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 function base64UrlDecode(str) {
     str = str.replace(/-/g, '+').replace(/_/g, '/');
     while (str.length % 4) str += '=';
-    return atob(str);
+    const binary = atob(str);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return new TextDecoder().decode(bytes);
 }
 
 function base64UrlToUint8(str) {
@@ -1970,7 +2021,6 @@ function base64UrlToUint8(str) {
     return bytes;
 }
 
-// 标准 HS256 JWT 生成
 async function createJWT(payload, secret) {
     const encoder = new TextEncoder();
     const header = { alg: 'HS256', typ: 'JWT' };
@@ -1987,7 +2037,6 @@ async function createJWT(payload, secret) {
     return `${headerEncoded}.${payloadEncoded}.${signatureEncoded}`;
 }
 
-// 严谨密码学验证：使用 crypto.subtle.verify 进行常量时间防篡改签名校验
 async function validateJWT(token, secret) {
     try {
         const parts = token.split('.');
@@ -2050,30 +2099,31 @@ function normalizeCategories(categories) {
     return categories;
 }
 
-// 动态匹配同源 CORS 头
 function getCorsHeaders(request) {
-    const origin = request.headers.get('Origin') || '*';
-    return {
-        'Access-Control-Allow-Origin': origin,
+    const origin = request.headers.get('Origin');
+    const headers = {
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie',
-        'Access-Control-Allow-Credentials': 'true'
     };
+    if (origin) {
+        headers['Access-Control-Allow-Origin'] = origin;
+        headers['Access-Control-Allow-Credentials'] = 'true';
+    } else {
+        headers['Access-Control-Allow-Origin'] = '*';
+    }
+    return headers;
 }
 
-// SSRF 与内网 IP 防御校验（保护内网及敏感端口）
 function isSafePublicHttpUrl(urlString) {
     try {
         const parsed = new URL(urlString);
         if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
         const host = parsed.hostname.toLowerCase();
 
-        // 屏蔽本地环回及保留域名
         if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host === '::1' || host.endsWith('.local') || host.endsWith('.internal')) {
             return false;
         }
 
-        // 屏蔽私有 IPv4 地址
         const ipParts = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
         if (ipParts) {
             const p = ipParts.slice(1).map(Number);
@@ -2091,7 +2141,6 @@ function isSafePublicHttpUrl(urlString) {
     }
 }
 
-// 安全代理获取 Favicon 图标
 async function handleIconProxy(request, ctx) {
     const url = new URL(request.url);
     const targetUrl = url.searchParams.get('url');
@@ -2112,7 +2161,6 @@ async function handleIconProxy(request, ctx) {
 
     try {
         const targetParsed = new URL(targetUrl);
-        // 使用仅传递域名的公共 Favicon 解析服务，杜绝私密 URL 参数外泄
         const upstreamApi = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(targetParsed.hostname)}&sz=128`;
         const upstreamResponse = await fetch(upstreamApi, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
@@ -2139,7 +2187,6 @@ async function handleIconProxy(request, ctx) {
     });
 }
 
-// 登录防暴力破解限流（5次连续失败封锁 15 分钟）
 async function checkRateLimit(ip, env) {
     if (!env.CARD_ORDER || !ip) return { allowed: true };
     const key = `ratelimit_${ip}`;
@@ -2225,7 +2272,6 @@ export default {
             return new Response(HTML_CONTENT, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
         }
 
-        // 登录接口：增加防暴破及常量时间密码对比
         if (url.pathname === '/api/login' && request.method === 'POST') {
             const limit = await checkRateLimit(clientIp, env);
             if (!limit.allowed) {
@@ -2261,7 +2307,6 @@ export default {
             }
         }
 
-        // 专用退出登录接口：注销 HttpOnly Cookie
         if (url.pathname === '/api/logout' && request.method === 'POST') {
             const response = new Response(JSON.stringify({ success: true }), {
                 status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -2270,7 +2315,6 @@ export default {
             return response;
         }
 
-        // 刷新凭证
         if (url.pathname === '/api/refreshToken' && request.method === 'POST') {
             try {
                 const cookies = parseCookie(request.headers.get('Cookie'));
