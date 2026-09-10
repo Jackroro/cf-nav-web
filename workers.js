@@ -421,6 +421,7 @@ const HTML_CONTENT = `
     let isEditMode = false;
     let isLoggedIn = false;
     let isAppLayout = localStorage.getItem('appLayout') === 'true';
+    let isSearchMode = false; // 跟踪当前是否处于搜索过滤状态
 
     const categories = {};
     let currentEngine;
@@ -605,7 +606,6 @@ const HTML_CONTENT = `
 
         if (elements.clearSearchButton) {
             elements.clearSearchButton.addEventListener('click', () => {
-                elements.searchInput.value = '';
                 loadSections(); 
             });
         }
@@ -615,8 +615,14 @@ const HTML_CONTENT = `
                 if (e.key === 'Enter') elements.searchButton.click();
             });
             elements.searchInput.addEventListener('input', (e) => {
-                if(e.target.value) elements.clearSearchButton.classList.remove('hidden');
-                else elements.clearSearchButton.classList.add('hidden');
+                if(e.target.value) {
+                    elements.clearSearchButton.classList.remove('hidden');
+                } else {
+                    elements.clearSearchButton.classList.add('hidden');
+                    if (isSearchMode) {
+                        loadSections();
+                    }
+                }
             });
         }
         
@@ -722,7 +728,7 @@ const HTML_CONTENT = `
         keys.forEach(key => {
             if (key === oldName) {
                 const data = categories[oldName];
-                data.links.forEach(item => item.category = newName);
+                (data.links || []).forEach(item => item.category = newName);
                 newCategories[newName] = data;
             } else {
                 newCategories[key] = categories[key];
@@ -751,6 +757,10 @@ const HTML_CONTENT = `
     
     async function moveCategory(categoryName, direction) {
         if (!await validateTokenOrRedirect()) return;
+        if (isSearchMode) {
+            await customAlert('搜索过滤状态下无法调整分类顺序');
+            return;
+        }
         const keys = Object.keys(categories);
         const index = keys.indexOf(categoryName);
         if (index < 0) return;
@@ -778,6 +788,10 @@ const HTML_CONTENT = `
 
     async function pinCategory(categoryName) {
         if (!await validateTokenOrRedirect()) return;
+        if (isSearchMode) {
+            await customAlert('搜索过滤状态下无法置顶分类');
+            return;
+        }
         const keys = Object.keys(categories);
         const index = keys.indexOf(categoryName);
         if (index < 0) return;
@@ -850,26 +864,28 @@ const HTML_CONTENT = `
                 editBtn.onclick = () => editCategoryName(category);
                 controls.appendChild(editBtn);
 
-                const upBtn = document.createElement('button');
-                upBtn.className = `${btnBase} text-slate-500 hover:text-emerald-600 hover:bg-emerald-100 dark:text-slate-400 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400 has-tooltip`;
-                upBtn.setAttribute('data-tooltip', '上移');
-                upBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>';
-                upBtn.onclick = () => moveCategory(category, -1);
-                controls.appendChild(upBtn);
+                if (!searchMode) {
+                    const upBtn = document.createElement('button');
+                    upBtn.className = `${btnBase} text-slate-500 hover:text-emerald-600 hover:bg-emerald-100 dark:text-slate-400 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400 has-tooltip`;
+                    upBtn.setAttribute('data-tooltip', '上移');
+                    upBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>';
+                    upBtn.onclick = () => moveCategory(category, -1);
+                    controls.appendChild(upBtn);
 
-                const downBtn = document.createElement('button');
-                downBtn.className = `${btnBase} text-slate-500 hover:text-emerald-600 hover:bg-emerald-100 dark:text-slate-400 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400 has-tooltip`;
-                downBtn.setAttribute('data-tooltip', '下移');
-                downBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>';
-                downBtn.onclick = () => moveCategory(category, 1);
-                controls.appendChild(downBtn);
+                    const downBtn = document.createElement('button');
+                    downBtn.className = `${btnBase} text-slate-500 hover:text-emerald-600 hover:bg-emerald-100 dark:text-slate-400 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400 has-tooltip`;
+                    downBtn.setAttribute('data-tooltip', '下移');
+                    downBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>';
+                    downBtn.onclick = () => moveCategory(category, 1);
+                    controls.appendChild(downBtn);
 
-                const pinBtn = document.createElement('button');
-                pinBtn.className = `${btnBase} text-slate-500 hover:text-amber-600 hover:bg-amber-100 dark:text-slate-400 dark:hover:bg-amber-900/30 dark:hover:text-amber-400 has-tooltip`;
-                pinBtn.setAttribute('data-tooltip', '置顶');
-                pinBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3h14M18 13l-6-6l-6 6M12 7v14"></path></svg>';
-                pinBtn.onclick = () => pinCategory(category);
-                controls.appendChild(pinBtn);
+                    const pinBtn = document.createElement('button');
+                    pinBtn.className = `${btnBase} text-slate-500 hover:text-amber-600 hover:bg-amber-100 dark:text-slate-400 dark:hover:bg-amber-900/30 dark:hover:text-amber-400 has-tooltip`;
+                    pinBtn.setAttribute('data-tooltip', '置顶');
+                    pinBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3h14M18 13l-6-6l-6 6M12 7v14"></path></svg>';
+                    pinBtn.onclick = () => pinCategory(category);
+                    controls.appendChild(pinBtn);
+                }
 
                 const hideWrap = document.createElement('div');
                 hideWrap.className = 'flex items-center justify-center w-8 h-8 has-tooltip cursor-pointer';
@@ -913,9 +929,9 @@ const HTML_CONTENT = `
             section.appendChild(cardContainer);
             container.appendChild(section);
 
-            links.forEach(link => createCard(link, cardContainer));
+            (links || []).forEach(link => createCard(link, cardContainer));
 
-            if (isEditMode) {
+            if (isEditMode && !searchMode) {
                 const addCardPlaceholder = document.createElement('div');
                 const sizeClasses = isAppLayout 
                     ? 'w-16 h-16 rounded-[1.2rem] mx-auto' 
@@ -950,18 +966,19 @@ const HTML_CONTENT = `
     }
 
     function renderCategories() {
-        renderCategorySections({ renderButtons: false });
+        renderCategorySections({ renderButtons: false, searchMode: isSearchMode });
     } 
 
     async function searchLinks(query) {
         const clearBtn = document.getElementById('clear-search-button');
         const filteredData = getFilteredCategoriesByKeyword(query);
-        const hasMatchingLinks = Object.values(filteredData).some(c => c.links.length > 0);
+        const hasMatchingLinks = Object.values(filteredData).some(c => (c.links || []).length > 0);
 
         if (!hasMatchingLinks) {
             await customAlert('没有找到相关站点。');
             return;
         }
+        isSearchMode = true;
         clearBtn.classList.remove('hidden');
         renderCategorySections({ renderButtons: true, searchMode: true, filteredCategories: filteredData });
     }
@@ -1078,9 +1095,10 @@ const HTML_CONTENT = `
     }
     
     function loadSections() {
+        isSearchMode = false;
         document.getElementById('clear-search-button').classList.add('hidden');
         document.getElementById('search-input').value = '';
-        renderCategorySections({ renderButtons: true });
+        renderCategorySections({ renderButtons: true, searchMode: false });
     }
 
     const imgApi = '/api/icon?url='; 
@@ -1100,7 +1118,8 @@ const HTML_CONTENT = `
 
         card.className = `group relative h-full w-full rounded-2xl transition-all duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] cursor-pointer select-none ${cardBaseClass}`;
         
-        if (isEditMode) {
+        // 搜索模式下严格禁止拖拽排序，防止局部 DOM 覆盖全量数据
+        if (isEditMode && !isSearchMode) {
             card.setAttribute('draggable', 'true');
             card.classList.add('card'); 
             card.classList.add('cursor-move');
@@ -1127,7 +1146,12 @@ const HTML_CONTENT = `
         }
         icon.className = iconClass;
 
-        icon.src = (!link.icon || !link.icon.startsWith('http')) ? imgApi + encodeURIComponent(link.url) : link.icon;
+        let normalizedUrl = (link.url || '').trim();
+        if (normalizedUrl && !/^https?:\/\//i.test(normalizedUrl)) {
+            normalizedUrl = 'https://' + normalizedUrl;
+        }
+
+        icon.src = (!link.icon || !link.icon.startsWith('http')) ? imgApi + encodeURIComponent(normalizedUrl) : link.icon;
         icon.onerror = function() {
              this.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' y='8' x2='12'/%3E%3Cline x1='12' y='8' x2='12'/%3E%3Cline x1='12' y='16' x2='12.01' y='16'/%3E%3C/svg%3E";
         };
@@ -1216,17 +1240,19 @@ const HTML_CONTENT = `
             };
         }
 
-        card.addEventListener('dragstart', dragStart);
-        card.addEventListener('dragover', dragOver);
-        card.addEventListener('dragend', dragEnd);
-        card.addEventListener('drop', drop);
+        if (!isSearchMode) {
+            card.addEventListener('dragstart', dragStart);
+            card.addEventListener('dragover', dragOver);
+            card.addEventListener('dragend', dragEnd);
+            card.addEventListener('drop', drop);
+            card.addEventListener('touchstart', touchStart, { passive: false });
+        }
         
         if (!isEditMode && link.tips) {
             card.classList.add('has-tooltip');
             card.setAttribute('data-tooltip', link.tips);
         }
 
-        card.addEventListener('touchstart', touchStart, { passive: false });
         container.appendChild(card);
         
         if (!window.hasAddedCardMenuListener) {
@@ -1275,10 +1301,16 @@ const HTML_CONTENT = `
         };
 
         try {
+            if (!categories[category]) categories[category] = { isHidden: false, links: [] };
+            if (!categories[category].links) categories[category].links = [];
             categories[category].links.push(newLink);
             await saveLinks();
-            if (isEditMode || !newLink.isPrivate || isLoggedIn) {
-                 renderCategories();
+            if (isSearchMode) {
+                const q = document.getElementById('search-input').value.trim();
+                if (q) searchLinks(q);
+                else loadSections();
+            } else {
+                renderCategories();
             }
             hideAddDialog();
         } catch (e) {
@@ -1301,7 +1333,8 @@ const HTML_CONTENT = `
 
         let found = false;
         for (const cat in categories) {
-             const idx = categories[cat].links.findIndex(l => l.id === oldLink.id || l.url === oldLink.url);
+             const list = categories[cat].links || [];
+             const idx = list.findIndex(l => l.id === oldLink.id || l.url === oldLink.url);
              if (idx !== -1) {
                  found = true;
                  if (cat === updatedLink.category) {
@@ -1309,6 +1342,7 @@ const HTML_CONTENT = `
                  } else {
                      categories[cat].links.splice(idx, 1);
                      if (!categories[updatedLink.category]) categories[updatedLink.category] = { isHidden:false, links:[] };
+                     if (!categories[updatedLink.category].links) categories[updatedLink.category].links = [];
                      categories[updatedLink.category].links.push(updatedLink);
                  }
                  break; 
@@ -1317,11 +1351,18 @@ const HTML_CONTENT = `
         
         if (!found) {
              if(!categories[updatedLink.category]) categories[updatedLink.category] = { isHidden:false, links:[] };
+             if (!categories[updatedLink.category].links) categories[updatedLink.category].links = [];
              categories[updatedLink.category].links.push(updatedLink);
         }
 
         await saveLinks();
-        renderCategories();
+        if (isSearchMode) {
+            const q = document.getElementById('search-input').value.trim();
+            if (q) searchLinks(q);
+            else loadSections();
+        } else {
+            renderCategories();
+        }
         hideAddDialog();
     }
 
@@ -1329,7 +1370,8 @@ const HTML_CONTENT = `
         if (!await validateTokenOrRedirect()) return;
         const cardId = card.getAttribute('data-id');
         for (const cat in categories) {
-            const idx = categories[cat].links.findIndex(l => l.id === cardId);
+            const list = categories[cat].links || [];
+            const idx = list.findIndex(l => l.id === cardId);
             if (idx !== -1) {
                 categories[cat].links.splice(idx, 1);
                 break;
@@ -1348,14 +1390,14 @@ const HTML_CONTENT = `
 
     let draggedCard = null;
     function dragStart(e) {
-        if (!isEditMode) { e.preventDefault(); return; }
+        if (!isEditMode || isSearchMode) { e.preventDefault(); return; }
         draggedCard = this;
         this.classList.add('dragging');
         e.dataTransfer.effectAllowed = "move";
         initialDragState = getCardState(this);
     }
     function dragOver(e) {
-        if (!isEditMode) return;
+        if (!isEditMode || isSearchMode) return;
         e.preventDefault();
         const target = e.target.closest('.card');
         if (target && target !== draggedCard) {
@@ -1372,7 +1414,7 @@ const HTML_CONTENT = `
         this.classList.remove('dragging');
     }
     async function drop(e) {
-        if (!isEditMode) return;
+        if (!isEditMode || isSearchMode) return;
         e.preventDefault();
         if (draggedCard) {
             const newState = getCardState(draggedCard);
@@ -1398,7 +1440,7 @@ const HTML_CONTENT = `
     let cloneHeight = 0;
 
     function touchStart(e) {
-        if (!isEditMode || e.touches.length > 1) return;
+        if (!isEditMode || isSearchMode || e.touches.length > 1) return;
 
         const card = e.target.closest('.card');
         if (!card) return;
@@ -1583,19 +1625,23 @@ const HTML_CONTENT = `
         const cardId = card.getAttribute('data-id');
         let item = null;
         for (const cat in categories) {
-             const idx = categories[cat].links.findIndex(l => l.id === cardId);
+             const list = categories[cat].links || [];
+             const idx = list.findIndex(l => l.id === cardId);
              if (idx !== -1) {
-                 item = categories[cat].links.splice(idx, 1)[0];
+                 item = list.splice(idx, 1)[0];
                  break;
              }
         }
         if (item) {
             item.category = newCategory;
+            if (!categories[newCategory]) categories[newCategory] = { isHidden: false, links: [] };
+            if (!categories[newCategory].links) categories[newCategory].links = [];
             categories[newCategory].links.push(item);
         }
     }
 
     function debouncedSaveCardOrder() {
+        if (isSearchMode) return; // 处于搜索过滤时坚决不执行 DOM 反刷回存
         if (saveOrderDebounceTimer) clearTimeout(saveOrderDebounceTimer);
         saveOrderDebounceTimer = setTimeout(() => {
             saveCardOrder();
@@ -1603,6 +1649,7 @@ const HTML_CONTENT = `
     }
 
     async function saveCardOrder() {
+        if (isSearchMode) return; // 处于搜索模式时禁止全量覆写
         const newCategories = {};
         const sections = document.querySelectorAll('.section');
         const allLinksMap = new Map();
@@ -2116,7 +2163,14 @@ function getCorsHeaders(request) {
 
 function isSafePublicHttpUrl(urlString) {
     try {
-        const parsed = new URL(urlString);
+        if (!urlString || typeof urlString !== 'string') return false;
+        let target = urlString.trim();
+        // 自动容错补全协议前缀
+        if (!/^https?:\/\//i.test(target)) {
+            target = 'https://' + target;
+        }
+
+        const parsed = new URL(target);
         if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
         const host = parsed.hostname.toLowerCase();
 
@@ -2143,9 +2197,18 @@ function isSafePublicHttpUrl(urlString) {
 
 async function handleIconProxy(request, ctx) {
     const url = new URL(request.url);
-    const targetUrl = url.searchParams.get('url');
+    let targetUrl = url.searchParams.get('url');
 
-    if (!targetUrl || !isSafePublicHttpUrl(targetUrl)) {
+    if (!targetUrl) {
+        return new Response('Invalid or Private URL', { status: 400 });
+    }
+
+    targetUrl = targetUrl.trim();
+    if (!/^https?:\/\//i.test(targetUrl)) {
+        targetUrl = 'https://' + targetUrl;
+    }
+
+    if (!isSafePublicHttpUrl(targetUrl)) {
         return new Response('Invalid or Private URL', { status: 400 });
     }
 
