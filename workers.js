@@ -61,6 +61,8 @@ const HTML_CONTENT = `
 
         .edit-mode .card {
             touch-action: pan-y;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
         }
 
         body.edit-mode .card,
@@ -722,7 +724,7 @@ const HTML_CONTENT = `
 
     async function deleteCategory(category) {
         if (!await validateTokenOrRedirect()) return;
-        if (await customConfirm(`确定删除 "\${category}" 分类及其所有链接吗？`)) {
+        if (await customConfirm('确定删除 "' + category + '" 分类及其所有链接吗？')) {
             delete categories[category];
             updateCategorySelect();
             renderCategories();
