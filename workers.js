@@ -159,20 +159,16 @@ const HTML_CONTENT = `
 </head>
 
 <body class="min-h-screen font-sans text-slate-800 dark:text-slate-100 selection:bg-emerald-200 dark:selection:bg-emerald-900 transition-colors duration-300">
-    <!-- 背景层 -->
     <div class="fixed inset-0 -z-10 h-full w-full overflow-hidden bg-gray-100 dark:bg-[#0f172a]">
         <div class="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-[#0f172a] dark:to-[#1e293b]"></div>
         <div class="absolute top-[-10%] left-[-10%] w-[800px] h-[800px] bg-emerald-200/30 dark:bg-indigo-900/20 rounded-full blur-[150px] mix-blend-multiply dark:mix-blend-screen animate-blob"></div>
         <div class="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-200/30 dark:bg-purple-900/20 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen animate-blob animation-delay-2000"></div>
     </div>
 
-    <!-- 顶部固定导航 -->
     <div class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
         <div class="backdrop-blur-xl bg-gray-100/60 dark:bg-[#0f172a]/60 border-b border-slate-200/40 dark:border-slate-700/40 shadow-sm supports-[backdrop-filter]:bg-gray-100/70">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex items-center justify-between h-16 gap-4">
-                    
-                    <!-- Logo -->
                     <a class="flex items-center gap-2 flex-shrink-0 group cursor-pointer bg-white/50 dark:bg-transparent hover:bg-white dark:hover:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200/50 dark:border-transparent transition-all duration-300 hover:shadow-md hover:shadow-emerald-500/10 hover:-translate-y-0.5" href="#" onclick="location.reload()">
                         <div class="w-8 h-8 flex items-center justify-center bg-gradient-to-tr from-emerald-500 to-teal-600 rounded-lg text-white shadow-lg shadow-emerald-500/30 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -182,7 +178,6 @@ const HTML_CONTENT = `
                         <span class="font-bold text-lg tracking-wide text-slate-700 dark:text-slate-100 hidden sm:block">我的导航</span>
                     </a>
 
-                    <!-- Search Bar -->
                     <div class="flex-1 max-w-2xl mx-auto">
                         <div class="relative flex items-center w-full h-10 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500/50 focus-within:shadow-lg focus-within:-translate-y-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 shadow-sm hover:shadow-lg transition-all duration-300">
                             <div class="relative h-full" id="search-engine-wrapper">
@@ -212,7 +207,6 @@ const HTML_CONTENT = `
                         </div>
                     </div>
 
-                    <!-- Profile / Settings -->
                     <div class="relative flex items-center gap-2">
                         <div id="profile-dropdown-wrapper" class="relative">
                             <button id="profile-menu-toggle" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 transition-all text-sm font-medium border border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:shadow-sm">
@@ -293,7 +287,6 @@ const HTML_CONTENT = `
         </div>
     </div>
 
-    <!-- 主要内容区 -->
     <main class="pt-36 pb-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-screen">
         <div id="add-category-container" class="hidden mt-12 mb-8">
             <button onclick="addCategory()" class="w-full py-4 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-emerald-500 hover:text-emerald-600 dark:hover:border-emerald-500 dark:hover:text-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-slate-800/50 transition-all flex items-center justify-center gap-2 group">
@@ -313,7 +306,6 @@ const HTML_CONTENT = `
         </div>
     </main>
 
-    <!-- 模态框：添加/编辑链接 -->
     <div id="dialog-overlay" class="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300 overlay-hidden">
         <div id="dialog-box" class="bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl w-full max-w-md p-6 transform transition-all duration-300 border border-slate-100 dark:border-slate-700 dialog-scale-hidden">
             <h3 class="text-xl font-bold mb-5 text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -360,7 +352,6 @@ const HTML_CONTENT = `
         </div>
     </div>
 
-    <!-- 密码弹窗 -->
     <div id="password-dialog-overlay" class="fixed inset-0 z-[70] bg-slate-900/70 backdrop-blur-md flex items-center justify-center p-4 transition-opacity duration-300 overlay-hidden">
         <div id="password-dialog-box" class="bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl p-8 w-full max-w-sm border border-slate-100 dark:border-slate-700 text-center transform transition-all duration-300 dialog-scale-hidden">
             <div class="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-500">
@@ -376,7 +367,6 @@ const HTML_CONTENT = `
         </div>
     </div>
 
-    <!-- 自定义 Alert -->
     <div id="custom-alert-overlay" class="fixed inset-0 z-[110] bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center p-4 transition-opacity duration-300 overlay-hidden">
         <div id="custom-alert-box" class="bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl p-6 max-w-sm w-full border border-slate-100 dark:border-slate-700 transform transition-all duration-300 dialog-scale-hidden">
             <h3 id="custom-alert-title" class="text-lg font-bold mb-2 text-slate-800 dark:text-white">提示</h3>
@@ -387,7 +377,6 @@ const HTML_CONTENT = `
         </div>
     </div>
 
-    <!-- 自定义 Confirm -->
     <div id="custom-confirm-overlay" class="fixed inset-0 z-[80] bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center p-4 transition-opacity duration-300 overlay-hidden">
         <div id="custom-confirm-box" class="bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl p-6 max-w-sm w-full border border-slate-100 dark:border-slate-700 transform transition-all duration-300 dialog-scale-hidden">
             <h3 class="text-lg font-bold mb-3 text-slate-800 dark:text-white">确认操作</h3>
@@ -399,7 +388,6 @@ const HTML_CONTENT = `
         </div>
     </div>
 
-    <!-- 分类输入弹窗 -->
     <div id="category-dialog" class="fixed inset-0 z-[65] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300 overlay-hidden">
         <div id="category-dialog-box" class="bg-white dark:bg-[#1e293b] rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-slate-100 dark:border-slate-700 transform transition-all duration-300 dialog-scale-hidden">
             <h3 id="category-dialog-title" class="text-lg font-bold mb-4 text-slate-800 dark:text-white">分类名称</h3>
@@ -411,7 +399,6 @@ const HTML_CONTENT = `
         </div>
     </div>
 
-    <!-- Tooltip Container -->
     <div id="custom-tooltip" class="fixed hidden pointer-events-none max-w-xs whitespace-pre-wrap border leading-relaxed tracking-wide backdrop-blur-md rounded-xl shadow-glass px-4 py-2 text-sm transition-opacity duration-150
         bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 border-slate-200/50 dark:border-slate-700/50">
     </div>
@@ -429,6 +416,10 @@ const HTML_CONTENT = `
 
     function generateId() {
         return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+    }
+
+    function getCatDomId(name) {
+        return 'sec-' + Array.from(new TextEncoder().encode(name)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
     function ensureLinkIds(cats) {
@@ -484,7 +475,7 @@ const HTML_CONTENT = `
             const btn = document.createElement('button');
             btn.className = "w-full text-left px-3 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-600 transition-colors flex items-center gap-3";
             btn.onclick = () => selectSearchEngine(key, label);
-            btn.innerHTML = `${icon}<span>${label}</span>`;
+            btn.innerHTML = \`\${icon}<span>\${label}</span>\`;
             container.appendChild(btn);
         });
     }
@@ -835,9 +826,11 @@ const HTML_CONTENT = `
         Object.entries(sourceCategories).forEach(([category, { links, isHidden }]) => {
             if (!isEditMode && !isLoggedIn && isHidden && !searchMode) return;
 
+            const catDomId = getCatDomId(category);
             const section = document.createElement('div');
             section.className = 'section section-anchor';
-            section.id = category;
+            section.id = catDomId;
+            section.dataset.category = category;
 
             const titleContainer = document.createElement('div');
             titleContainer.className = 'flex items-center gap-3 mb-5 pb-2 border-b border-slate-200/60 dark:border-slate-700/60';
@@ -857,7 +850,7 @@ const HTML_CONTENT = `
                 const btnBase = "w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-200 hover:scale-105 active:scale-95";
 
                 const editBtn = document.createElement('button');
-                editBtn.className = `${btnBase} text-slate-500 hover:text-blue-600 hover:bg-blue-100 dark:text-slate-400 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 has-tooltip`;
+                editBtn.className = \`\${btnBase} text-slate-500 hover:text-blue-600 hover:bg-blue-100 dark:text-slate-400 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 has-tooltip\`;
                 editBtn.setAttribute('data-tooltip', '重命名');
                 editBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>';
                 editBtn.onclick = () => editCategoryName(category);
@@ -865,21 +858,21 @@ const HTML_CONTENT = `
 
                 if (!searchMode) {
                     const upBtn = document.createElement('button');
-                    upBtn.className = `${btnBase} text-slate-500 hover:text-emerald-600 hover:bg-emerald-100 dark:text-slate-400 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400 has-tooltip`;
+                    upBtn.className = \`\${btnBase} text-slate-500 hover:text-emerald-600 hover:bg-emerald-100 dark:text-slate-400 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400 has-tooltip\`;
                     upBtn.setAttribute('data-tooltip', '上移');
                     upBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>';
                     upBtn.onclick = () => moveCategory(category, -1);
                     controls.appendChild(upBtn);
 
                     const downBtn = document.createElement('button');
-                    downBtn.className = `${btnBase} text-slate-500 hover:text-emerald-600 hover:bg-emerald-100 dark:text-slate-400 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400 has-tooltip`;
+                    downBtn.className = \`\${btnBase} text-slate-500 hover:text-emerald-600 hover:bg-emerald-100 dark:text-slate-400 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400 has-tooltip\`;
                     downBtn.setAttribute('data-tooltip', '下移');
                     downBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>';
                     downBtn.onclick = () => moveCategory(category, 1);
                     controls.appendChild(downBtn);
 
                     const pinBtn = document.createElement('button');
-                    pinBtn.className = `${btnBase} text-slate-500 hover:text-amber-600 hover:bg-amber-100 dark:text-slate-400 dark:hover:bg-amber-900/30 dark:hover:text-amber-400 has-tooltip`;
+                    pinBtn.className = \`\${btnBase} text-slate-500 hover:text-amber-600 hover:bg-amber-100 dark:text-slate-400 dark:hover:bg-amber-900/30 dark:hover:text-amber-400 has-tooltip\`;
                     pinBtn.setAttribute('data-tooltip', '置顶');
                     pinBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3h14M18 13l-6-6l-6 6M12 7v14"></path></svg>';
                     pinBtn.onclick = () => pinCategory(category);
@@ -907,7 +900,7 @@ const HTML_CONTENT = `
                 controls.appendChild(hideWrap);
 
                 const delBtn = document.createElement('button');
-                delBtn.className = `${btnBase} text-slate-400 hover:text-red-600 hover:bg-red-100 dark:text-slate-500 dark:hover:bg-red-900/30 dark:hover:text-red-400 has-tooltip`;
+                delBtn.className = \`\${btnBase} text-slate-400 hover:text-red-600 hover:bg-red-100 dark:text-slate-500 dark:hover:bg-red-900/30 dark:hover:text-red-400 has-tooltip\`;
                 delBtn.setAttribute('data-tooltip', '删除分类');
                 delBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>';
                 delBtn.onclick = () => deleteCategory(category);
@@ -921,8 +914,9 @@ const HTML_CONTENT = `
                 ? 'grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-x-2 gap-y-6' 
                 : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4';
             
-            cardContainer.className = `grid ${gridClasses} card-container relative`;
-            cardContainer.id = category;
+            cardContainer.className = \`grid \${gridClasses} card-container relative\`;
+            cardContainer.id = 'cards-' + catDomId;
+            cardContainer.dataset.category = category;
 
             section.appendChild(titleContainer);
             section.appendChild(cardContainer);
@@ -936,12 +930,12 @@ const HTML_CONTENT = `
                     ? 'w-16 h-16 rounded-[1.2rem] mx-auto' 
                     : 'min-h-[100px] p-4 rounded-2xl w-full';
                 
-                addCardPlaceholder.className = `add-card-placeholder group flex flex-col h-full w-full ${sizeClasses} rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-all cursor-pointer flex items-center justify-center`;
-                addCardPlaceholder.innerHTML = `
+                addCardPlaceholder.className = \`add-card-placeholder group flex flex-col h-full w-full \${sizeClasses} rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-all cursor-pointer flex items-center justify-center\`;
+                addCardPlaceholder.innerHTML = \`
                     <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/30 flex items-center justify-center transition-colors pointer-events-none">
                         <svg class="w-6 h-6 text-slate-400 group-hover:text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                     </div>
-                `;
+                \`;
                 
                 addCardPlaceholder.addEventListener('dragover', (e) => {
                     e.preventDefault();
@@ -993,19 +987,20 @@ const HTML_CONTENT = `
         if (visibleCategories.length === 0) return;
 
         visibleCategories.forEach(cat => {
+            const catDomId = getCatDomId(cat);
             const btn = document.createElement('button');
             btn.className = 'category-button whitespace-nowrap px-4 py-1.5 text-xs font-medium rounded-xl border border-slate-300 dark:border-slate-600 transition-all active:scale-95 shadow-sm scroll-snap-align-start';
             btn.classList.add('bg-slate-100', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300', 'hover:bg-emerald-50', 'hover:text-emerald-600', 'dark:hover:bg-slate-700', 'hover:border-emerald-300', 'dark:hover:border-emerald-500/50');
             
             btn.textContent = cat;
-            btn.dataset.target = cat;
-            btn.onclick = () => scrollToCategory(cat);
+            btn.dataset.target = catDomId;
+            btn.onclick = () => scrollToCategory(catDomId);
             container.appendChild(btn);
         });
     }
 
-    function scrollToCategory(catId) {
-        const section = document.getElementById(catId);
+    function scrollToCategory(catDomId) {
+        const section = document.getElementById(catDomId);
         if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
@@ -1115,7 +1110,7 @@ const HTML_CONTENT = `
             cardBaseClass += ' ring-1 ring-amber-400/40 bg-amber-50/80 dark:bg-amber-900/10 !border-amber-200 dark:!border-amber-700/50';
         }
 
-        card.className = `group relative h-full w-full rounded-2xl transition-all duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] cursor-pointer select-none ${cardBaseClass}`;
+        card.className = \`group relative h-full w-full rounded-2xl transition-all duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] cursor-pointer select-none \${cardBaseClass}\`;
         
         if (isEditMode && !isSearchMode) {
             card.setAttribute('draggable', 'true');
@@ -1145,7 +1140,7 @@ const HTML_CONTENT = `
         icon.className = iconClass;
 
         let normalizedUrl = (link.url || '').trim();
-        if (normalizedUrl && !/^https?:\/\//i.test(normalizedUrl)) {
+        if (normalizedUrl && !/^https?:\\/\\//i.test(normalizedUrl)) {
             normalizedUrl = 'https://' + normalizedUrl;
         }
 
@@ -1159,7 +1154,7 @@ const HTML_CONTENT = `
             ? 'text-center text-xs sm:text-sm font-medium mt-1 w-[120%] truncate px-1 text-slate-700 dark:text-slate-200 drop-shadow-sm' 
             : 'font-semibold text-sm flex-1 truncate text-slate-700 dark:text-slate-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors pointer-events-none';
         
-        title.className = `card-title pointer-events-none ${titleAlign}`;
+        title.className = \`card-title pointer-events-none \${titleAlign}\`;
         title.textContent = link.name;
         
         header.appendChild(icon);
@@ -1189,13 +1184,13 @@ const HTML_CONTENT = `
                 ? 'w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 shadow-sm hover:bg-emerald-500 hover:text-white'
                 : 'w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100/80 backdrop-blur-sm';
             
-            menuBtn.className = `${btnStyle} flex items-center justify-center transition-all duration-200`;
+            menuBtn.className = \`\${btnStyle} flex items-center justify-center transition-all duration-200\`;
             menuBtn.innerHTML = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>';
             
             const dropdown = document.createElement('div');
             dropdown.className = 'hidden absolute right-0 top-6 w-28 bg-white dark:bg-[#1e293b] rounded-xl shadow-xl ring-1 ring-black/5 dark:ring-white/10 overflow-hidden transform origin-top-right transition-all z-50 flex flex-col p-1 card-menu-dropdown';
             
-            dropdown.innerHTML = `
+            dropdown.innerHTML = \`
                 <button class="menu-edit w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-slate-700/50 hover:text-emerald-600 transition-colors flex items-center gap-2">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                     编辑
@@ -1204,7 +1199,7 @@ const HTML_CONTENT = `
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                     删除
                 </button>
-            `;
+            \`;
 
             menuBtn.onclick = (e) => {
                 e.stopPropagation();
@@ -1383,7 +1378,7 @@ const HTML_CONTENT = `
         if(!card) return { category: null, index: -1 };
         const section = card.closest('.section');
         const index = Array.from(section.querySelectorAll('.card')).indexOf(card);
-        return { category: section.id, index: index };
+        return { category: section.dataset.category, index: index };
     }
 
     let draggedCard = null;
@@ -1643,7 +1638,7 @@ const HTML_CONTENT = `
         if (saveOrderDebounceTimer) clearTimeout(saveOrderDebounceTimer);
         saveOrderDebounceTimer = setTimeout(() => {
             saveCardOrder();
-        }, 500);
+        }, 1200);
     }
 
     async function saveCardOrder() {
@@ -1659,7 +1654,7 @@ const HTML_CONTENT = `
         });
 
         sections.forEach(sec => {
-            const catName = sec.id;
+            const catName = sec.dataset.category || sec.id;
             const oldCat = categories[catName];
             newCategories[catName] = { isHidden: oldCat ? oldCat.isHidden : false, links: [] };
             
@@ -2013,7 +2008,6 @@ const HTML_CONTENT = `
 const DEFAULT_USER = 'testUser';
 const MIN_BACKUP_INTERVAL_MS = 10 * 60 * 1000; 
 
-// 防时序攻击比对
 function timingSafeEqualStr(a, b) {
     if (typeof a !== 'string' || typeof b !== 'string') return false;
     const enc = new TextEncoder();
@@ -2166,7 +2160,6 @@ function getCorsHeaders(request) {
     return headers;
 }
 
-// 增强的 SSRF 与私网 IP 检测
 function isSafePublicHttpUrl(urlString) {
     try {
         if (!urlString || typeof urlString !== 'string') return false;
@@ -2179,12 +2172,10 @@ function isSafePublicHttpUrl(urlString) {
         if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
         const host = parsed.hostname.toLowerCase();
 
-        // 拦截私有域名与主机名
         if (host === 'localhost' || host === '0.0.0.0' || host === '::1' || host.endsWith('.local') || host.endsWith('.internal')) {
             return false;
         }
 
-        // 拦截 IPv6 私网与回环
         if (host.startsWith('[') && host.endsWith(']')) {
             const rawIpv6 = host.slice(1, -1);
             if (rawIpv6 === '::1' || rawIpv6.startsWith('fe80:') || rawIpv6.startsWith('fc00:') || rawIpv6.startsWith('fd')) {
@@ -2192,23 +2183,21 @@ function isSafePublicHttpUrl(urlString) {
             }
         }
 
-        // 拦截十进制数字型 IP (例如 http://2130706433)
         if (/^\d+$/.test(host)) {
             return false;
         }
 
-        // 拦截 IPv4 私网与保留地址
         const ipParts = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
         if (ipParts) {
             const p = ipParts.slice(1).map(Number);
             if (p.some(n => n < 0 || n > 255)) return false;
-            if (p[0] === 0) return false;                           // 本地网络
-            if (p[0] === 10) return false;                          // 10.0.0.0/8
-            if (p[0] === 127) return false;                         // 127.0.0.0/8
-            if (p[0] === 169 && p[1] === 254) return false;         // 169.254.0.0/16 (链路本地)
-            if (p[0] === 172 && (p[1] >= 16 && p[1] <= 31)) return false; // 172.16.0.0/12
-            if (p[0] === 192 && p[1] === 168) return false;        // 192.168.0.0/16
-            if (p[0] >= 224) return false;                          // 多播及保留
+            if (p[0] === 0) return false;
+            if (p[0] === 10) return false;
+            if (p[0] === 127) return false;
+            if (p[0] === 169 && p[1] === 254) return false;
+            if (p[0] === 172 && (p[1] >= 16 && p[1] <= 31)) return false;
+            if (p[0] === 192 && p[1] === 168) return false;
+            if (p[0] >= 224) return false;
         }
         return true;
     } catch {
@@ -2216,7 +2205,6 @@ function isSafePublicHttpUrl(urlString) {
     }
 }
 
-// 修复与增强的 Icon 代理（Cache 安全包裹 + 多源回退）
 async function handleIconProxy(request, ctx) {
     const url = new URL(request.url);
     let targetUrl = url.searchParams.get('url');
@@ -2253,10 +2241,14 @@ async function handleIconProxy(request, ctx) {
         } catch (e) {}
     }
 
-    const targetParsed = new URL(targetUrl);
-    const domain = targetParsed.hostname;
+    let domain = '';
+    try {
+        const targetParsed = new URL(targetUrl);
+        domain = targetParsed.hostname;
+    } catch (e) {
+        return new Response('Invalid Host', { status: 400 });
+    }
 
-    // 上游源列表（主用 Google，备用 DuckDuckGo）
     const upstreamSources = [
         `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`,
         `https://icons.duckduckgo.com/ip3/${encodeURIComponent(domain)}.ico`
@@ -2284,7 +2276,6 @@ async function handleIconProxy(request, ctx) {
         } catch (e) {}
     }
 
-    // 回退兜底 SVG
     const defaultSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
     return new Response(defaultSVG, {
         status: 200,
@@ -2296,7 +2287,6 @@ async function handleIconProxy(request, ctx) {
     });
 }
 
-// 防爆破：带安全包裹的 KV 限流
 async function checkRateLimit(ip, env) {
     if (!env.CARD_ORDER || !ip) return { allowed: true };
     try {
@@ -2369,7 +2359,6 @@ async function handleSmartBackup(env, currentData) {
     }
 }
 
-// 检查运行时必须的环境变量绑定
 function checkConfiguration(env) {
     const missing = [];
     if (!env.CARD_ORDER) missing.push("KV: CARD_ORDER");
@@ -2396,7 +2385,6 @@ export default {
             return new Response(HTML_CONTENT, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
         }
 
-        // 统一环境检查：若未配置 KV 或密钥，明确提示
         const missingConfigs = checkConfiguration(env);
         if (missingConfigs.length > 0 && url.pathname.startsWith('/api/')) {
             return new Response(JSON.stringify({ 
