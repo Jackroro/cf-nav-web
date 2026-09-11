@@ -635,10 +635,18 @@ const HTML_CONTENT = `
             }
         });
 
-        window.addEventListener('beforeunload', () => {
+        const handleUnloadSave = () => {
             if (saveOrderDebounceTimer) {
                 clearTimeout(saveOrderDebounceTimer);
-                saveCardOrder();
+                saveOrderDebounceTimer = null;
+                saveCardOrder(true);
+            }
+        };
+
+        window.addEventListener('beforeunload', handleUnloadSave);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                handleUnloadSave();
             }
         });
         
@@ -870,7 +878,7 @@ const HTML_CONTENT = `
                 const editBtn = document.createElement('button');
                 editBtn.className = \`\${btnBase} text-slate-500 hover:text-blue-600 hover:bg-blue-100 dark:text-slate-400 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 has-tooltip\`;
                 editBtn.setAttribute('data-tooltip', '重命名');
-                editBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>';
+                editBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>';
                 editBtn.onclick = () => editCategoryName(category);
                 controls.appendChild(editBtn);
 
@@ -1652,11 +1660,12 @@ const HTML_CONTENT = `
         if (isSearchMode) return;
         if (saveOrderDebounceTimer) clearTimeout(saveOrderDebounceTimer);
         saveOrderDebounceTimer = setTimeout(() => {
+            saveOrderDebounceTimer = null;
             saveCardOrder();
         }, 1200);
     }
 
-    async function saveCardOrder() {
+    async function saveCardOrder(isExiting = false) {
         if (isSearchMode) return;
         const newCategories = {};
         const sections = document.querySelectorAll('.section');
@@ -1686,7 +1695,23 @@ const HTML_CONTENT = `
         
         Object.keys(categories).forEach(k => delete categories[k]);
         Object.assign(categories, newCategories);
-        await saveDataToServer('保存排序', categories);
+
+        if (isExiting) {
+            const token = localStorage.getItem('authToken');
+            try {
+                fetch('/api/saveData', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'Authorization': token } : {})
+                    },
+                    body: JSON.stringify({ categories }),
+                    keepalive: true
+                });
+            } catch (e) {}
+        } else {
+            await saveDataToServer('保存排序', categories);
+        }
     }
 
     function applyTheme(isDark) {
