@@ -420,7 +420,7 @@ const HTML_CONTENT = `
     let isEditMode = false;
     let isLoggedIn = false;
     let isAppLayout = localStorage.getItem('appLayout') === 'true';
-    let isSearchMode = false; // 跟踪当前是否处于搜索过滤状态
+    let isSearchMode = false;
 
     const categories = {};
     let currentEngine;
@@ -683,10 +683,10 @@ const HTML_CONTENT = `
             }
 
             const result = await response.json();
-            if (!result.success) throw new Error('Failed to save');
+            if (!result.success) throw new Error(result.message || 'Failed to save');
         } catch (error) {
             if (error.message !== 'Unauthorized') {
-                 await customAlert(actionName + '失败，请重试');
+                 await customAlert(actionName + '失败：' + error.message);
             }
         }
     }
@@ -1117,7 +1117,6 @@ const HTML_CONTENT = `
 
         card.className = `group relative h-full w-full rounded-2xl transition-all duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] cursor-pointer select-none ${cardBaseClass}`;
         
-        // 搜索模式下严格禁止拖拽排序，防止局部 DOM 覆盖全量数据
         if (isEditMode && !isSearchMode) {
             card.setAttribute('draggable', 'true');
             card.classList.add('card'); 
@@ -1640,7 +1639,7 @@ const HTML_CONTENT = `
     }
 
     function debouncedSaveCardOrder() {
-        if (isSearchMode) return; // 处于搜索过滤时坚决不执行 DOM 反刷回存
+        if (isSearchMode) return;
         if (saveOrderDebounceTimer) clearTimeout(saveOrderDebounceTimer);
         saveOrderDebounceTimer = setTimeout(() => {
             saveCardOrder();
@@ -1648,7 +1647,7 @@ const HTML_CONTENT = `
     }
 
     async function saveCardOrder() {
-        if (isSearchMode) return; // 处于搜索模式时禁止全量覆写
+        if (isSearchMode) return;
         const newCategories = {};
         const sections = document.querySelectorAll('.section');
         const allLinksMap = new Map();
@@ -2014,20 +2013,24 @@ const HTML_CONTENT = `
 const DEFAULT_USER = 'testUser';
 const MIN_BACKUP_INTERVAL_MS = 10 * 60 * 1000; 
 
+// 防时序攻击比对
 function timingSafeEqualStr(a, b) {
     if (typeof a !== 'string' || typeof b !== 'string') return false;
     const enc = new TextEncoder();
     const aBytes = enc.encode(a);
     const bBytes = enc.encode(b);
-    if (aBytes.byteLength !== bBytes.byteLength) return false;
-    let diff = 0;
-    for (let i = 0; i < aBytes.byteLength; i++) {
-        diff |= aBytes[i] ^ bBytes[i];
+    
+    const maxLen = Math.max(aBytes.byteLength, bBytes.byteLength);
+    let diff = aBytes.byteLength ^ bBytes.byteLength;
+    
+    for (let i = 0; i < maxLen; i++) {
+        const aVal = i < aBytes.byteLength ? aBytes[i] : 0;
+        const bVal = i < bBytes.byteLength ? bBytes[i] : 0;
+        diff |= aVal ^ bVal;
     }
     return diff === 0;
 }
 
-// 兼容 UTF-8 多字节字符的 Base64URL 编码
 function base64UrlEncode(str) {
     const bytes = new TextEncoder().encode(str);
     let binary = '';
@@ -2117,6 +2120,9 @@ function parseCookie(cookieHeader) {
 }
 
 async function validateServerToken(authHeader, env) {
+    if (!env.JWT_SECRET) {
+        return { isValid: false, status: 500, response: { error: 'Configuration Error', message: '服务器未配置 JWT_SECRET' } };
+    }
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return { isValid: false, status: 401, response: { error: 'Unauthorized', message: '未登录' } };
     }
@@ -2160,11 +2166,11 @@ function getCorsHeaders(request) {
     return headers;
 }
 
+// 增强的 SSRF 与私网 IP 检测
 function isSafePublicHttpUrl(urlString) {
     try {
         if (!urlString || typeof urlString !== 'string') return false;
         let target = urlString.trim();
-        // 自动容错补全协议前缀
         if (!/^https?:\/\//i.test(target)) {
             target = 'https://' + target;
         }
@@ -2173,20 +2179,36 @@ function isSafePublicHttpUrl(urlString) {
         if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
         const host = parsed.hostname.toLowerCase();
 
-        if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host === '::1' || host.endsWith('.local') || host.endsWith('.internal')) {
+        // 拦截私有域名与主机名
+        if (host === 'localhost' || host === '0.0.0.0' || host === '::1' || host.endsWith('.local') || host.endsWith('.internal')) {
             return false;
         }
 
+        // 拦截 IPv6 私网与回环
+        if (host.startsWith('[') && host.endsWith(']')) {
+            const rawIpv6 = host.slice(1, -1);
+            if (rawIpv6 === '::1' || rawIpv6.startsWith('fe80:') || rawIpv6.startsWith('fc00:') || rawIpv6.startsWith('fd')) {
+                return false;
+            }
+        }
+
+        // 拦截十进制数字型 IP (例如 http://2130706433)
+        if (/^\d+$/.test(host)) {
+            return false;
+        }
+
+        // 拦截 IPv4 私网与保留地址
         const ipParts = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
         if (ipParts) {
             const p = ipParts.slice(1).map(Number);
             if (p.some(n => n < 0 || n > 255)) return false;
-            if (p[0] === 10) return false;
-            if (p[0] === 127) return false;
-            if (p[0] === 169 && p[1] === 254) return false;
-            if (p[0] === 172 && (p[1] >= 16 && p[1] <= 31)) return false;
-            if (p[0] === 192 && p[1] === 168) return false;
-            if (p[0] === 0) return false;
+            if (p[0] === 0) return false;                           // 本地网络
+            if (p[0] === 10) return false;                          // 10.0.0.0/8
+            if (p[0] === 127) return false;                         // 127.0.0.0/8
+            if (p[0] === 169 && p[1] === 254) return false;         // 169.254.0.0/16 (链路本地)
+            if (p[0] === 172 && (p[1] >= 16 && p[1] <= 31)) return false; // 172.16.0.0/12
+            if (p[0] === 192 && p[1] === 168) return false;        // 192.168.0.0/16
+            if (p[0] >= 224) return false;                          // 多播及保留
         }
         return true;
     } catch {
@@ -2194,12 +2216,13 @@ function isSafePublicHttpUrl(urlString) {
     }
 }
 
+// 修复与增强的 Icon 代理（Cache 安全包裹 + 多源回退）
 async function handleIconProxy(request, ctx) {
     const url = new URL(request.url);
     let targetUrl = url.searchParams.get('url');
 
     if (!targetUrl) {
-        return new Response('Invalid or Private URL', { status: 400 });
+        return new Response('Invalid URL', { status: 400 });
     }
 
     targetUrl = targetUrl.trim();
@@ -2208,79 +2231,109 @@ async function handleIconProxy(request, ctx) {
     }
 
     if (!isSafePublicHttpUrl(targetUrl)) {
-        return new Response('Invalid or Private URL', { status: 400 });
+        return new Response('Disallowed URL host', { status: 400 });
     }
 
     const cacheKey = new Request(url.toString(), request);
-    const cache = caches.default;
-    let response = await cache.match(cacheKey);
-
-    if (response) {
-        response = new Response(response.body, response);
-        response.headers.set('X-Icon-Cache-Status', 'HIT');
-        return response;
+    let cache = null;
+    try {
+        cache = caches.default;
+    } catch (e) {
+        cache = null;
     }
 
-    try {
-        const targetParsed = new URL(targetUrl);
-        const upstreamApi = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(targetParsed.hostname)}&sz=128`;
-        const upstreamResponse = await fetch(upstreamApi, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
-        });
+    if (cache) {
+        try {
+            const cachedResponse = await cache.match(cacheKey);
+            if (cachedResponse) {
+                const res = new Response(cachedResponse.body, cachedResponse);
+                res.headers.set('X-Icon-Cache-Status', 'HIT');
+                return res;
+            }
+        } catch (e) {}
+    }
 
-        if (upstreamResponse && upstreamResponse.ok) {
-            response = new Response(upstreamResponse.body, upstreamResponse);
-            response.headers.set('Cache-Control', 'public, max-age=604800, s-maxage=604800');
-            response.headers.set('Access-Control-Allow-Origin', '*');
-            response.headers.set('X-Icon-Cache-Status', 'MISS');
-            ctx.waitUntil(cache.put(cacheKey, response.clone()));
-            return response;
-        }
-    } catch (e) {}
+    const targetParsed = new URL(targetUrl);
+    const domain = targetParsed.hostname;
 
+    // 上游源列表（主用 Google，备用 DuckDuckGo）
+    const upstreamSources = [
+        `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`,
+        `https://icons.duckduckgo.com/ip3/${encodeURIComponent(domain)}.ico`
+    ];
+
+    for (const upstreamApi of upstreamSources) {
+        try {
+            const upstreamResponse = await fetch(upstreamApi, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+            });
+
+            if (upstreamResponse && upstreamResponse.ok) {
+                const response = new Response(upstreamResponse.body, upstreamResponse);
+                response.headers.set('Cache-Control', 'public, max-age=604800, s-maxage=604800');
+                response.headers.set('Access-Control-Allow-Origin', '*');
+                response.headers.set('X-Icon-Cache-Status', 'MISS');
+
+                if (cache) {
+                    try {
+                        ctx.waitUntil(cache.put(cacheKey, response.clone()));
+                    } catch (e) {}
+                }
+                return response;
+            }
+        } catch (e) {}
+    }
+
+    // 回退兜底 SVG
     const defaultSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
     return new Response(defaultSVG, {
         status: 200,
         headers: {
             'Content-Type': 'image/svg+xml',
-            'Cache-Control': 'public, max-age=3600',
+            'Cache-Control': 'public, max-age=86400',
             'Access-Control-Allow-Origin': '*'
         }
     });
 }
 
+// 防爆破：带安全包裹的 KV 限流
 async function checkRateLimit(ip, env) {
     if (!env.CARD_ORDER || !ip) return { allowed: true };
-    const key = `ratelimit_${ip}`;
-    const record = await env.CARD_ORDER.get(key, { type: 'json' });
-    if (record && record.count >= 5) {
-        const remainingTime = Math.ceil((record.unlockTime - Date.now()) / 1000);
-        if (remainingTime > 0) {
-            return { allowed: false, message: `尝试次数过多，IP已被封锁，请等待 ${remainingTime} 秒后再试` };
+    try {
+        const key = `ratelimit_${ip}`;
+        const record = await env.CARD_ORDER.get(key, { type: 'json' });
+        if (record && record.count >= 5) {
+            const remainingTime = Math.ceil((record.unlockTime - Date.now()) / 1000);
+            if (remainingTime > 0) {
+                return { allowed: false, message: `尝试次数过多，IP已被限制，请等待 ${remainingTime} 秒后再试` };
+            }
         }
-    }
+    } catch (e) {}
     return { allowed: true };
 }
 
 async function recordFailedAttempt(ip, env) {
     if (!env.CARD_ORDER || !ip) return;
-    const key = `ratelimit_${ip}`;
-    const record = (await env.CARD_ORDER.get(key, { type: 'json' })) || { count: 0 };
-    record.count += 1;
-    if (record.count >= 5) {
-        record.unlockTime = Date.now() + 15 * 60 * 1000;
+    try {
+        const key = `ratelimit_${ip}`;
+        const record = (await env.CARD_ORDER.get(key, { type: 'json' })) || { count: 0 };
+        record.count += 1;
+        if (record.count >= 5) {
+            record.unlockTime = Date.now() + 15 * 60 * 1000;
+        }
         await env.CARD_ORDER.put(key, JSON.stringify(record), { expirationTtl: 900 });
-    } else {
-        await env.CARD_ORDER.put(key, JSON.stringify(record), { expirationTtl: 900 });
-    }
+    } catch (e) {}
 }
 
 async function clearRateLimit(ip, env) {
     if (!env.CARD_ORDER || !ip) return;
-    await env.CARD_ORDER.delete(`ratelimit_${ip}`);
+    try {
+        await env.CARD_ORDER.delete(`ratelimit_${ip}`);
+    } catch (e) {}
 }
 
 async function handleSmartBackup(env, currentData) {
+    if (!env.CARD_ORDER) return;
     try {
         const list = await env.CARD_ORDER.list({ prefix: `backup_${DEFAULT_USER}_` });
         let keys = list.keys;
@@ -2305,7 +2358,7 @@ async function handleSmartBackup(env, currentData) {
             await env.CARD_ORDER.put(backupKey, currentData, { metadata: { timestamp: now } });
             if (keys.length >= 10) { 
                 const deleteCount = keys.length + 1 - 10;
-                if(deleteCount > 0) {
+                if (deleteCount > 0) {
                     const toDelete = keys.slice(0, deleteCount);
                     for (const key of toDelete) await env.CARD_ORDER.delete(key.name);
                 }
@@ -2314,6 +2367,15 @@ async function handleSmartBackup(env, currentData) {
     } catch (e) {
         console.error("Smart backup failed:", e);
     }
+}
+
+// 检查运行时必须的环境变量绑定
+function checkConfiguration(env) {
+    const missing = [];
+    if (!env.CARD_ORDER) missing.push("KV: CARD_ORDER");
+    if (!env.ADMIN_PASSWORD) missing.push("Secret/Env: ADMIN_PASSWORD");
+    if (!env.JWT_SECRET) missing.push("Secret/Env: JWT_SECRET");
+    return missing;
 }
 
 export default {
@@ -2332,6 +2394,15 @@ export default {
 
         if (url.pathname === '/') {
             return new Response(HTML_CONTENT, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+        }
+
+        // 统一环境检查：若未配置 KV 或密钥，明确提示
+        const missingConfigs = checkConfiguration(env);
+        if (missingConfigs.length > 0 && url.pathname.startsWith('/api/')) {
+            return new Response(JSON.stringify({ 
+                error: 'Configuration Missing', 
+                message: `服务端缺少必要配置，请在 Workers 设置中补充: ${missingConfigs.join(', ')}` 
+            }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
         if (url.pathname === '/api/login' && request.method === 'POST') {
@@ -2363,7 +2434,7 @@ export default {
                 response.headers.append('Set-Cookie', `refreshToken=${refreshToken}; HttpOnly; Secure; SameSite=Strict; Path=/api/refreshToken; Max-Age=2592000`);
                 return response;
             } catch (e) {
-                return new Response(JSON.stringify({ valid: false, message: '认证处理异常' }), {
+                return new Response(JSON.stringify({ valid: false, message: '认证数据格式错误' }), {
                     status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                 });
             }
@@ -2415,10 +2486,20 @@ export default {
 
         if (url.pathname === '/api/getLinks') {
             const authToken = request.headers.get('Authorization');
-            const dataStr = await env.CARD_ORDER.get(DEFAULT_USER);
+            let dataStr = null;
+            try {
+                dataStr = await env.CARD_ORDER.get(DEFAULT_USER);
+            } catch (e) {
+                return new Response(JSON.stringify({ categories: {}, error: 'KV Read Error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json'} });
+            }
 
             if (dataStr) {
-                const parsedData = JSON.parse(dataStr);
+                let parsedData;
+                try {
+                    parsedData = JSON.parse(dataStr);
+                } catch(e) {
+                    parsedData = { categories: {} };
+                }
                 const normalizedCategories = normalizeCategories(parsedData.categories || {});
                 let isAuthorized = false;
 
@@ -2460,7 +2541,7 @@ export default {
                 await env.CARD_ORDER.put(DEFAULT_USER, JSON.stringify({ categories }));
                 return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json'} });
             } catch (e) {
-                return new Response(JSON.stringify({ error: 'Bad Request' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json'} });
+                return new Response(JSON.stringify({ error: 'Bad Request', message: e.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json'} });
             }
         }
 
@@ -2469,7 +2550,7 @@ export default {
             if (!validation.isValid) return new Response(JSON.stringify(validation.response), { status: validation.status, headers: { ...corsHeaders, 'Content-Type': 'application/json'} });
             
             const sourceData = await env.CARD_ORDER.get(DEFAULT_USER);
-            if(sourceData) {
+            if (sourceData) {
                  const now = Date.now();
                  const date = new Date(now + 8 * 3600 * 1000);
                  const dateStr = date.toISOString().replace(/[:.]/g, '-');
@@ -2484,20 +2565,23 @@ export default {
              if (!validation.isValid) return new Response(JSON.stringify(validation.response), { status: validation.status, headers: { ...corsHeaders, 'Content-Type': 'application/json'} });
              
              const data = await env.CARD_ORDER.get(DEFAULT_USER);
-             return new Response(data || '{}', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json'} });
+             return new Response(data || '{"categories":{}}', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json'} });
         }
         
         if (url.pathname === '/api/importData' && request.method === 'POST') {
              const validation = await validateServerToken(request.headers.get('Authorization'), env);
              if (!validation.isValid) return new Response(JSON.stringify(validation.response), { status: validation.status, headers: { ...corsHeaders, 'Content-Type': 'application/json'} });
               
-             const body = await request.json();
-             const cleanData = { categories: body.categories || {} };
-             await env.CARD_ORDER.put(DEFAULT_USER, JSON.stringify(cleanData));
-             return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json'} });
+             try {
+                 const body = await request.json();
+                 const cleanData = { categories: body.categories || {} };
+                 await env.CARD_ORDER.put(DEFAULT_USER, JSON.stringify(cleanData));
+                 return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json'} });
+             } catch(e) {
+                 return new Response(JSON.stringify({ success: false, error: 'Invalid JSON payload' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json'} });
+             }
         }
 
         return new Response('Not Found', { status: 404, headers: corsHeaders });
     }
 };
-
