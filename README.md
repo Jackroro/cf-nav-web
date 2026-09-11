@@ -1,3 +1,8 @@
+---
+##声明与介绍
+- 源代码来源于https://github.com/lineagett/cf-workers-nav,经AI迭代十二次，终于显示没有任何问题了。
+
+
 # 部署到Cloudflare
 
 ## 1. 部署步骤
