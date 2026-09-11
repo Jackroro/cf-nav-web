@@ -423,10 +423,11 @@ const HTML_CONTENT = `
     }
 
     function ensureLinkIds(cats) {
-        Object.values(cats).forEach(cat => {
+        Object.entries(cats).forEach(([catName, cat]) => {
             if (cat && Array.isArray(cat.links)) {
                 cat.links.forEach(l => {
                     if (!l.id) l.id = generateId();
+                    if (!l.category) l.category = catName;
                 });
             }
         });
@@ -494,13 +495,23 @@ const HTML_CONTENT = `
     });
 
     async function checkLoginStatusAndLoad() {
-        const isValid = await validateToken(true); 
-        if (isValid) {
-            isLoggedIn = true;
-        } else {
-            isLoggedIn = false;
-            isEditMode = false;
+        let isValid = await validateToken(true); 
+        if (!isValid && localStorage.getItem('hasLoggedIn') === '1') {
+            try {
+                const refreshRes = await fetch('/api/refreshToken', { method: 'POST', credentials: 'include' });
+                if (refreshRes.ok) {
+                    const data = await refreshRes.json();
+                    if (data.accessToken) {
+                        localStorage.setItem('authToken', data.accessToken);
+                        isValid = true;
+                    }
+                } else {
+                    localStorage.removeItem('hasLoggedIn');
+                }
+            } catch (e) {}
         }
+        isLoggedIn = isValid;
+        if (!isValid) isEditMode = false;
         await loadLinks();
     }
 
@@ -621,6 +632,13 @@ const HTML_CONTENT = `
                 elements.backToTopBtn.classList.remove('hidden');
             } else {
                 elements.backToTopBtn.classList.add('hidden');
+            }
+        });
+
+        window.addEventListener('beforeunload', () => {
+            if (saveOrderDebounceTimer) {
+                clearTimeout(saveOrderDebounceTimer);
+                saveCardOrder();
             }
         });
         
@@ -918,6 +936,19 @@ const HTML_CONTENT = `
             cardContainer.id = 'cards-' + catDomId;
             cardContainer.dataset.category = category;
 
+            cardContainer.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const dragging = document.querySelector('.card.dragging');
+                if (dragging && (e.target === cardContainer || e.target.classList.contains('add-card-placeholder'))) {
+                    const placeholder = cardContainer.querySelector('.add-card-placeholder');
+                    if (placeholder) {
+                        cardContainer.insertBefore(dragging, placeholder);
+                    } else {
+                        cardContainer.appendChild(dragging);
+                    }
+                }
+            });
+
             section.appendChild(titleContainer);
             section.appendChild(cardContainer);
             container.appendChild(section);
@@ -940,7 +971,7 @@ const HTML_CONTENT = `
                 addCardPlaceholder.addEventListener('dragover', (e) => {
                     e.preventDefault();
                     const dragging = document.querySelector('.card.dragging');
-                    if(dragging && dragging.parentElement === cardContainer) {
+                    if (dragging) {
                         cardContainer.insertBefore(dragging, addCardPlaceholder);
                     }
                 });
@@ -1277,12 +1308,16 @@ const HTML_CONTENT = `
     async function addCard() {
         if (!await validateTokenOrRedirect()) return;
         const name = document.getElementById('name-input').value.trim();
-        const url = document.getElementById('url-input').value.trim();
+        let url = document.getElementById('url-input').value.trim();
         const category = document.getElementById('category-select-value').value;
         
         if (!name || !url || !category) {
             await customAlert('请填写必要信息 (名称, URL, 分类)');
             return;
+        }
+
+        if (!/^https?:\\/\\//i.test(url)) {
+            url = 'https://' + url;
         }
 
         const newLink = {
@@ -1314,10 +1349,15 @@ const HTML_CONTENT = `
     async function updateCard(oldLink) {
         if (!await validateTokenOrRedirect()) return;
         
+        let url = document.getElementById('url-input').value.trim();
+        if (url && !/^https?:\\/\\//i.test(url)) {
+            url = 'https://' + url;
+        }
+
         const updatedLink = {
             id: oldLink.id || generateId(),
             name: document.getElementById('name-input').value.trim(),
-            url: document.getElementById('url-input').value.trim(),
+            url: url,
             tips: document.getElementById('tips-input').value.trim(),
             icon: document.getElementById('icon-input').value.trim(),
             category: document.getElementById('category-select-value').value,
@@ -1405,18 +1445,12 @@ const HTML_CONTENT = `
     }
     function dragEnd() {
         this.classList.remove('dragging');
+        debouncedSaveCardOrder();
+        draggedCard = null;
     }
     async function drop(e) {
         if (!isEditMode || isSearchMode) return;
         e.preventDefault();
-        if (draggedCard) {
-            const newState = getCardState(draggedCard);
-            if (newState.category !== initialDragState.category || newState.index !== initialDragState.index) {
-                updateCardCategory(draggedCard, newState.category);
-                debouncedSaveCardOrder();
-            }
-            draggedCard = null;
-        }
     }
 
     let mobileDragTimer = null;
@@ -1614,25 +1648,6 @@ const HTML_CONTENT = `
         }
     }
 
-    function updateCardCategory(card, newCategory) {
-        const cardId = card.getAttribute('data-id');
-        let item = null;
-        for (const cat in categories) {
-             const list = categories[cat].links || [];
-             const idx = list.findIndex(l => l.id === cardId);
-             if (idx !== -1) {
-                 item = list.splice(idx, 1)[0];
-                 break;
-             }
-        }
-        if (item) {
-            item.category = newCategory;
-            if (!categories[newCategory]) categories[newCategory] = { isHidden: false, links: [] };
-            if (!categories[newCategory].links) categories[newCategory].links = [];
-            categories[newCategory].links.push(item);
-        }
-    }
-
     function debouncedSaveCardOrder() {
         if (isSearchMode) return;
         if (saveOrderDebounceTimer) clearTimeout(saveOrderDebounceTimer);
@@ -1731,8 +1746,8 @@ const HTML_CONTENT = `
         document.getElementById('tips-input').value = link.tips || '';
         document.getElementById('icon-input').value = link.icon || '';
         document.getElementById('private-checkbox').checked = link.isPrivate;
-        document.getElementById('category-select-value').value = link.category;
-        document.getElementById('category-select-text').textContent = link.category;
+        document.getElementById('category-select-value').value = link.category || '';
+        document.getElementById('category-select-text').textContent = link.category || '请选择分类';
         
         const btn = document.getElementById('dialog-confirm-btn');
         const newBtn = btn.cloneNode(true);
@@ -1757,6 +1772,7 @@ const HTML_CONTENT = `
              const data = await res.json();
              if(data.valid) {
                  localStorage.setItem('authToken', data.token);
+                 localStorage.setItem('hasLoggedIn', '1');
                  isLoggedIn = true;
                  toggleOverlay('password-dialog-overlay', false);
                  await loadLinks();
@@ -1794,6 +1810,7 @@ const HTML_CONTENT = `
                 }
             } catch (refreshError) {
                 localStorage.removeItem('authToken');
+                localStorage.removeItem('hasLoggedIn');
                 isLoggedIn = false;
                 if (!silentAuth) {
                     toggleOverlay('password-dialog-overlay', true);
@@ -1925,6 +1942,7 @@ const HTML_CONTENT = `
             await fetch('/api/logout', { method: 'POST', credentials: 'include' });
         } catch(e) {}
         localStorage.removeItem('authToken');
+        localStorage.removeItem('hasLoggedIn');
         isLoggedIn = false;
         isEditMode = false;
         if (reload) location.reload();
@@ -2107,8 +2125,12 @@ function parseCookie(cookieHeader) {
     const cookies = {};
     if (!cookieHeader) return cookies;
     cookieHeader.split(';').forEach(cookie => {
-        const [name, value] = cookie.trim().split('=');
-        if (name && value) cookies[name] = decodeURIComponent(value);
+        const idx = cookie.indexOf('=');
+        if (idx > -1) {
+            const name = cookie.slice(0, idx).trim();
+            const value = cookie.slice(idx + 1).trim();
+            if (name && value) cookies[name] = decodeURIComponent(value);
+        }
     });
     return cookies;
 }
@@ -2563,6 +2585,10 @@ export default {
              try {
                  const body = await request.json();
                  const cleanData = { categories: body.categories || {} };
+                 const currentData = await env.CARD_ORDER.get(DEFAULT_USER);
+                 if (currentData) {
+                     ctx.waitUntil(handleSmartBackup(env, currentData));
+                 }
                  await env.CARD_ORDER.put(DEFAULT_USER, JSON.stringify(cleanData));
                  return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json'} });
              } catch(e) {
