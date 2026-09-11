@@ -1,6 +1,7 @@
 ---
 ## 声明与介绍
-源代码来源于https://github.com/lineagett/cf-workers-nav,  经AI迭代十二次，终于显示没有任何问题了。
+- **代码修复**：源代码来源于https://github.com/lineagett/cf-workers-nav,  经AI迭代十二次，终于显示没有任何问题了。
+- **教程更新**：原项目的教程有点难操作，经个人实践，现教程对新手小白更加友好。
 
 
 # 部署到Cloudflare
