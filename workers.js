@@ -1,5 +1,4 @@
 
-```javascript
 const HTML_CONTENT = `
 <!DOCTYPE html>
 <html lang="zh-CN" class="scroll-smooth">
@@ -2501,4 +2500,4 @@ export default {
         return new Response('Not Found', { status: 404, headers: corsHeaders });
     }
 };
-```
+
